@@ -1,0 +1,6 @@
+@Salematic.API_HostAddress = http://localhost:5047
+
+GET {{Salematic.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
