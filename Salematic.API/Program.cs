@@ -4,6 +4,7 @@ using Salematic.Infrastructure.LLM;
 using Salematic.Infrastructure.Payment;
 using Salematic.Infrastructure.Repositories;
 using Salematic.API.Middlewares;
+using Salematic.Infrastructure.ServiceBus;
 
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
@@ -33,18 +34,44 @@ builder.Services.AddScoped<IPedidoRepository>(_ => new PedidoRepository(dbConn))
 builder.Services.AddScoped<IClienteRepository>(_ => new ClienteRepository(dbConn));
 
 // Pagamento
-builder.Services.AddScoped<IPagamentoService, MockPagamentoService>();
+var asaasKey = config["Asaas:ApiKey"] ?? string.Empty;
+var asaasUrl = config["Asaas:BaseUrl"] ?? "https://sandbox.asaas.com/api/v3";
+builder.Services.AddScoped<IPagamentoService>(_ =>
+    string.IsNullOrWhiteSpace(asaasKey)
+        ? new MockPagamentoService()
+        : new AsaasPagamentoService(asaasKey, asaasUrl));
 
 // LLM
 builder.Services.AddSingleton<ILlmClient>(_ => LlmFactory.Create(config));
 
 // Application services
-builder.Services.AddScoped<AgentToolsService>();
+var isDevelopment = builder.Environment.IsDevelopment();
+var devRequestsPath = config["DevRequests:Dir"]
+    ?? Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "dev-requests"));
+
+builder.Services.AddScoped<AgentToolsService>(sp => new AgentToolsService(
+    sp.GetRequiredService<IProdutoRepository>(),
+    sp.GetRequiredService<IPedidoRepository>(),
+    sp.GetRequiredService<IClienteRepository>(),
+    sp.GetRequiredService<IPagamentoService>(),
+    isDevelopment,
+    devRequestsPath
+));
+builder.Services.AddSingleton<ServiceBusPublisher>(sp =>
+{
+    var sbConn = config.GetConnectionString("ServiceBus");
+    var topic = config["ServiceBus:Topic"] ?? "salematic-events";
+    if (string.IsNullOrEmpty(sbConn))
+        throw new InvalidOperationException("ConnectionStrings:ServiceBus não configurado");
+    return new ServiceBusPublisher(sbConn, topic);
+});
+
 builder.Services.AddScoped<PedidoService>();
 builder.Services.AddScoped<ChatService>(sp => new ChatService(
     sp.GetRequiredService<ILlmClient>(),
     sp.GetRequiredService<AgentToolsService>(),
-    config["Agent:SystemPrompt"] ?? "Você é um assistente de vendas. Ajude o cliente a consultar produtos, fazer e acompanhar pedidos."
+    config["Agent:SystemPrompt"] ?? "Você é um assistente de vendas. Ajude o cliente a consultar produtos, fazer e acompanhar pedidos.",
+    isDevelopment
 ));
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>

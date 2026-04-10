@@ -11,17 +11,21 @@ public class PedidoService
     private readonly IPedidoRepository _pedidos;
     private readonly IClienteRepository _clientes;
     private readonly IPagamentoService _pagamento;
+    private readonly IEventPublisher _eventPublisher;
 
     public PedidoService(
         IProdutoRepository produtos,
         IPedidoRepository pedidos,
         IClienteRepository clientes,
-        IPagamentoService pagamento)
+        IPagamentoService pagamento,
+        IEventPublisher eventPublisher
+        )
     {
         _produtos = produtos;
         _pedidos = pedidos;
         _clientes = clientes;
         _pagamento = pagamento;
+        _eventPublisher = eventPublisher;
     }
 
     public async Task<WebhookPedidoResponse> ProcessarAsync(WebhookPedidoRequest request)
@@ -67,7 +71,6 @@ public class PedidoService
             PedidoId = pedido.Id,
             Valor = total,
             MetodoPagamento = request.MetodoPagamento,
-            NumeroCartao = request.NumeroCartao
         });
 
         var status = pagamento.Aprovado ? "confirmado" : "pagamento_recusado";
