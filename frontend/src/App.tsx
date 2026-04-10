@@ -3,11 +3,16 @@ import { MessageBubble } from './components/MessageBubble'
 import { MessageInput } from './components/MessageInput'
 import { enviarMensagem } from './api'
 import { Mensagem } from './types'
+import SalematicaMock from './mocks/salematica-payment-mock'
 
 // Em produção, o clienteId viria de autenticação JWT
 const CLIENT_ID = 1
 
 export default function App() {
+  if (new URLSearchParams(window.location.search).get('mock') === 'payment') {
+    return <SalematicaMock />
+  }
+
   const [historico, setHistorico] = useState<Mensagem[]>([])
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
