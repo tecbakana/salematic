@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Salematic.Domain.Models;
 
 public class LlmMensagem
@@ -20,5 +22,5 @@ public class LlmResponse
     public string? TextoResposta { get; set; }
     public string? NomeFerramenta { get; set; }
     public string? IdChamada { get; set; }
-    public Dictionary<string, object>? Argumentos { get; set; }
+    public Dictionary<string, JsonElement>? Argumentos { get; set; }
 }

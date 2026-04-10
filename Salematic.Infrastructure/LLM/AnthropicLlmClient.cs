@@ -88,7 +88,7 @@ public class AnthropicLlmClient : ILlmClient
                 TipoResposta = "tool_use",
                 NomeFerramenta = toolUse.Name,
                 IdChamada = toolUse.Id,
-                Argumentos = JsonSerializer.Deserialize<Dictionary<string, object>>(toolUse.Input.ToJsonString())
+                Argumentos = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(toolUse.Input.ToJsonString())
             };
         }
 

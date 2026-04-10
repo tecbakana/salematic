@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Moq;
 using Salematic.Application.DTOs;
 using Salematic.Application.Services;
@@ -13,11 +14,14 @@ public class ChatServiceTests
     private readonly Mock<IProdutoRepository> _produtosMock = new();
     private readonly Mock<IPedidoRepository> _pedidosMock = new();
     private readonly Mock<IClienteRepository> _clientesMock = new();
+    private readonly Mock<IPagamentoService> _pagamentoMock = new();
 
     private ChatService CriarService()
     {
-        var tools = new AgentToolsService(_produtosMock.Object, _pedidosMock.Object, _clientesMock.Object);
-        return new ChatService(_llmMock.Object, tools, "Você é um assistente de vendas.");
+        var tools = new AgentToolsService(
+            _produtosMock.Object, _pedidosMock.Object, _clientesMock.Object,
+            _pagamentoMock.Object, isDevelopment: false, devRequestsPath: "");
+        return new ChatService(_llmMock.Object, tools, "Você é um assistente de vendas.", isDevelopment: false);
     }
 
     [Fact]
@@ -47,7 +51,10 @@ public class ChatServiceTests
                 TipoResposta = "tool_use",
                 NomeFerramenta = "consultar_estoque",
                 IdChamada = "call_1",
-                Argumentos = new Dictionary<string, object> { ["nome_produto"] = "teclado" }
+                Argumentos = new Dictionary<string, JsonElement>
+                {
+                    ["nome_produto"] = JsonSerializer.Deserialize<JsonElement>("\"teclado\"")
+                }
             });
 
         _llmMock.Setup(x => x.EnviarResultadoToolAsync(It.IsAny<string>(), It.IsAny<List<LlmMensagem>>(),

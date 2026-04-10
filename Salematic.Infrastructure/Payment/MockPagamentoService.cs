@@ -10,11 +10,7 @@ public class MockPagamentoService : IPagamentoService
     {
         // Cartões terminando em "0000" são recusados; demais aprovados
         // PIX e Boleto sempre aprovados
-        var aprovado = solicitacao.MetodoPagamento.ToLower() switch
-        {
-            "cartao" => !solicitacao.NumeroCartao?.EndsWith("0000") ?? true,
-            _ => true
-        };
+        var aprovado = true;
 
         return Task.FromResult(new ResultadoPagamento
         {

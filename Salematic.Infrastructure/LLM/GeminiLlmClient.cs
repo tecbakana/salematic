@@ -24,11 +24,7 @@ public class GeminiLlmClient : ILlmClient
         var payload = new
         {
             system_instruction = new { parts = new[] { new { text = systemPrompt } } },
-            contents = mensagens.Select(m => new
-            {
-                role = m.Role == "assistant" ? "model" : "user",
-                parts = new[] { new { text = m.Content } }
-            }),
+            contents = FiltrarMensagens(mensagens),
             tools = new[]
             {
                 new
@@ -40,12 +36,17 @@ public class GeminiLlmClient : ILlmClient
                         parameters = f.Parametros
                     })
                 }
-            }
+            },
+            generationConfig = new { thinkingConfig = new { thinkingBudget = 0 } }
         };
 
         var url = $"{BaseUrl}/models/{_model}:generateContent?key={_apiKey}";
         var response = await _http.PostAsJsonAsync(url, payload);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var erro = await response.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"Gemini {(int)response.StatusCode}: {erro}");
+        }
 
         var json = await response.Content.ReadAsStringAsync();
         return ParseGeminiResponse(json);
@@ -55,16 +56,15 @@ public class GeminiLlmClient : ILlmClient
         string systemPrompt, List<LlmMensagem> mensagens, List<LlmFerramenta> ferramentas,
         string idChamada, string nomeFerramenta, string resultado)
     {
-        var contents = mensagens.Select(m => new
-        {
-            role = m.Role == "assistant" ? "model" : "user",
-            parts = new[] { new { text = m.Content } }
-        }).Cast<object>().ToList();
+        var contents = FiltrarMensagens(mensagens).Cast<object>().ToList();
 
+        // Gemini exige que response seja um objeto (Struct), nunca array
+        // Sempre envolve o resultado em { output: ... }
+        var resultadoElement = JsonSerializer.Deserialize<JsonElement>(resultado);
         contents.Add(new
         {
             role = "user",
-            parts = new[] { new { function_response = new { name = nomeFerramenta, response = new { result = resultado } } } }
+            parts = new[] { new { function_response = new { name = nomeFerramenta, response = new { output = resultadoElement } } } }
         });
 
         var payload = new
@@ -82,41 +82,60 @@ public class GeminiLlmClient : ILlmClient
                         parameters = f.Parametros
                     })
                 }
-            }
+            },
+            generationConfig = new { thinkingConfig = new { thinkingBudget = 0 } }
         };
 
         var url = $"{BaseUrl}/models/{_model}:generateContent?key={_apiKey}";
         var response = await _http.PostAsJsonAsync(url, payload);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var erro = await response.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"Gemini {(int)response.StatusCode}: {erro}");
+        }
 
         var json = await response.Content.ReadAsStringAsync();
         return ParseGeminiResponse(json);
     }
 
+    private static IEnumerable<object> FiltrarMensagens(List<LlmMensagem> mensagens) =>
+        mensagens
+            .Where(m => !string.IsNullOrWhiteSpace(m.Content))
+            .Select(m => new
+            {
+                role = m.Role == "assistant" ? "model" : "user",
+                parts = new[] { new { text = m.Content } }
+            });
+
     private static LlmResponse ParseGeminiResponse(string json)
     {
         using var doc = JsonDocument.Parse(json);
-        var part = doc.RootElement
+        var parts = doc.RootElement
             .GetProperty("candidates")[0]
             .GetProperty("content")
-            .GetProperty("parts")[0];
+            .GetProperty("parts");
 
-        if (part.TryGetProperty("functionCall", out var fc))
+        // Gemini pode retornar texto + functionCall em parts separados — prioriza functionCall
+        foreach (var part in parts.EnumerateArray())
         {
-            return new LlmResponse
+            if (part.TryGetProperty("functionCall", out var fc))
             {
-                TipoResposta = "tool_use",
-                NomeFerramenta = fc.GetProperty("name").GetString(),
-                IdChamada = fc.GetProperty("name").GetString(),
-                Argumentos = JsonSerializer.Deserialize<Dictionary<string, object>>(
-                    fc.GetProperty("args").GetRawText())
-            };
+                return new LlmResponse
+                {
+                    TipoResposta = "tool_use",
+                    NomeFerramenta = fc.GetProperty("name").GetString(),
+                    IdChamada = fc.GetProperty("name").GetString(),
+                    Argumentos = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                        fc.GetProperty("args").GetRawText())
+                };
+            }
         }
 
+        // Nenhuma functionCall — retorna texto do primeiro part
         return new LlmResponse
         {
             TipoResposta = "text",
-            TextoResposta = part.GetProperty("text").GetString() ?? string.Empty
+            TextoResposta = parts[0].GetProperty("text").GetString() ?? string.Empty
         };
     }
 }

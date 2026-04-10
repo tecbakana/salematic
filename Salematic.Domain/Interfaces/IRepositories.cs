@@ -21,4 +21,7 @@ public interface IClienteRepository
 {
     Task<Cliente?> BuscarPorIdAsync(int id);
     Task<Cliente?> BuscarPorDocumentoAsync(string documento);
+    Task<Cliente> CriarClienteAsync(Cliente cliente);
+    Task AtualizarEnderecoAsync(int id, string cep, string logradouro, string numero, string complemento, string bairro, string cidade, string estado);
+    Task AtualizarClienteAsync(int id, string nome, string documento, string email, string telefone);
 }
