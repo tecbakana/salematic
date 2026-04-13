@@ -37,6 +37,8 @@ frontend/                — React app
 
 ## Configuração
 
+> **AVISO DE SEGURANÇA:** Nunca commitar arquivos com API keys, senhas ou configurações sensíveis. Use `dotnet user-secrets` para secrets locais e garanta que `.gitignore` exclua qualquer arquivo com dados sensíveis antes do push.
+
 API keys e secrets são gerenciados via `dotnet user-secrets` — o `appsettings.json` não contém valores sensíveis.
 
 ```bash
