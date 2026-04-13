@@ -3,39 +3,33 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Salematic.Application.DTOs;
 using Salematic.Application.Services;
-using Salematic.Domain.Entities;
 using Salematic.Domain.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Salematic.Infrastructure.ServiceBus
 {
     public class ServiceBusConsumer : BackgroundService
     {
-        private readonly IServiceScopeFactory _scopeFactory;
         private readonly IConfiguration _config;
-        private readonly IPedidoRepository _pedidoRepository;
-        private readonly string _connectionString;
+        private readonly IEventPublisher _publisher;
+        private readonly IServiceProvider _services;
         private readonly ILogger<ServiceBusConsumer> _logger;
 
-        public ServiceBusConsumer(IServiceScopeFactory scopeFactory, IConfiguration config, IPedidoRepository pedidoRepository, string connectionString )
+        public ServiceBusConsumer(IConfiguration config, IEventPublisher publisher, IServiceProvider services, ILogger<ServiceBusConsumer> logger)
         {
-            _scopeFactory = scopeFactory;
-            _pedidoRepository = pedidoRepository;
-            _connectionString = connectionString;
-            _config = config;
+            _config    = config;
+            _publisher = publisher;
+            _services  = services;
+            _logger    = logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             var connStr = _config["ServiceBus:ConnectionString"];
-            var topico = _config["ServiceBus:Topico"] ?? "top-pedidos";
-            var sub = _config["ServiceBus:Subscription"] ?? "sub-pedidos-salematic";
+            var topico  = _config["ServiceBus:TopicoPedidos"] ?? "top-pedidos";
+            var sub     = _config["ServiceBus:Subscription"]  ?? "sub-pedidos-salematic";
 
             if (string.IsNullOrWhiteSpace(connStr))
             {
@@ -43,15 +37,15 @@ namespace Salematic.Infrastructure.ServiceBus
                 return;
             }
 
-            await using var client = new ServiceBusClient(connStr);
+            await using var client    = new ServiceBusClient(connStr);
             await using var processor = client.CreateProcessor(topico, sub, new ServiceBusProcessorOptions
             {
-                MaxConcurrentCalls = 1,
+                MaxConcurrentCalls   = 1,
                 AutoCompleteMessages = false
             });
 
             processor.ProcessMessageAsync += HandleMessageAsync;
-            processor.ProcessErrorAsync += HandleErrorAsync;
+            processor.ProcessErrorAsync   += HandleErrorAsync;
 
             await processor.StartProcessingAsync(stoppingToken);
             _logger.LogInformation("Consumer Service Bus iniciado. Tópico={Topico} Sub={Sub}", topico, sub);
@@ -61,53 +55,92 @@ namespace Salematic.Infrastructure.ServiceBus
 
             await processor.StopProcessingAsync();
             _logger.LogInformation("Consumer Service Bus encerrado.");
-
         }
+
         private async Task HandleMessageAsync(ProcessMessageEventArgs args)
         {
             try
             {
                 var json = args.Message.Body.ToString();
-                var msg = JsonSerializer.Deserialize<Pedido>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                CmsxPedidoMsg? msg = null;
 
-                if (msg is null || string.IsNullOrWhiteSpace(msg.Id.ToString()) || string.IsNullOrWhiteSpace(msg.ClienteId.ToString()))
+                try
+                {
+                    msg = JsonSerializer.Deserialize<CmsxPedidoMsg>(json, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning(ex, "Falha ao desserializar mensagem JSON: {Body}", json);
+                    await args.CompleteMessageAsync(args.Message);
+                    return;
+                }
+
+                if (msg is null || string.IsNullOrWhiteSpace(msg.Numeropedido) || string.IsNullOrWhiteSpace(msg.Aplicacaoid) || string.IsNullOrWhiteSpace(msg.Clientenome) || string.IsNullOrWhiteSpace(msg.Clienteemail))
                 {
                     _logger.LogWarning("Mensagem inválida recebida: {Body}", json);
                     await args.CompleteMessageAsync(args.Message);
                     return;
                 }
 
-                using var scope = _scopeFactory.CreateScope();
-                var ctx = scope.ServiceProvider.GetRequiredService<PedidoService>();
+                _logger.LogInformation("Pedido recebido do CMSX: {Numero} Aplicacao={App} Email={Email}", msg.Numeropedido, msg.Aplicacaoid, msg.Clienteemail);
 
-                var pedido = await _pedidoRepository.BuscarPorIdAsync(msg.Id);
+                using var scope = _services.CreateScope();
+                var clienteRepo =  scope.ServiceProvider.GetRequiredService<IClienteRepository>();
+                var pedidoService = scope.ServiceProvider.GetRequiredService<PedidoService>();
 
-                if (pedido is null)
+                var cliente = await clienteRepo.BuscarPorEmailAsync(msg.Clienteemail);
+                if (cliente == null)
                 {
-                    pedido = new Pedido
-                    {
-                        Id = new int(), // Será gerado pelo EF]
-                        ClienteId = 0, // Desconecido no momento
-                        DataPedido = DateTime.UtcNow,
-                        Status = msg.Status ?? "desconecido",
-                        ValorTotal = msg.ValorTotal>0?msg.ValorTotal:0,
-                        Itens = new List<ItemPedido>()
-                    };
+                    _logger.LogInformation("Cliente não encontrado. Email: {Email} Numero={Numero}", msg.Clienteemail,msg.Numeropedido);
                     
+                    await args.DeadLetterMessageAsync(args.Message, "Cliente não encontrado", $"Nenhum cliente com email {msg.Clienteemail} foi encontrado no Salematic.");
+                    return;
                 }
-                else
+
+                var request = new WebhookPedidoRequest
                 {
-                    pedido.Status = msg.Status;
+                    ClienteId = cliente.Id,
+                    MetodoPagamento = "desconecido",
+                    Itens = new List<WebhookItemRequest>()
+                };
+
+                WebhookPedidoResponse resultado;
+                try
+                {
+                    resultado = await pedidoService.ProcessarAsync(request);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erro ao processar pedido. Numero={Numero} Email={Email}", msg.Numeropedido, msg.Clienteemail);
+                    await args.AbandonMessageAsync(args.Message);
+                    return;
                 }
 
+                if(!resultado.Sucesso)
+                {
+                    _logger.LogWarning("Processamento do pedido falhou. Numero={Numero} Email={Email} Motivo={Motivo}", msg.Numeropedido, msg.Clienteemail, resultado.Mensagem);
+                    await args.DeadLetterMessageAsync(args.Message, "Processamento falhou", resultado.Mensagem);
+                    return;
+                }
 
-                await _pedidoRepository.CriarPedidoAsync(pedido);
+                // Publica confirmação de recebimento de volta ao CMSX
+                await _publisher.PublishAsync(new
+                {
+                    aplicacaoid  = msg.Aplicacaoid,
+                    numeropedido = msg.Numeropedido,
+                    clientenome  = msg.Clientenome,
+                    clienteemail = msg.Clienteemail,
+                    valorpedido  = msg.Valorpedido,
+                    status       = "entrada",
+                    evento       = "pedido.recebido",
+                    descricao    = "Pedido recebido pelo Salematic e em processamento."
+                });
+
                 await args.CompleteMessageAsync(args.Message);
-
-                _logger.LogInformation("Pedido {Num} — status '{Status}' registrado.", msg.Id, msg.Status);
+                _logger.LogInformation("Pedido {Numero} processado.SalematicId={Id}", msg.Numeropedido,resultado.PedidoId);
             }
             catch (Exception ex)
             {
@@ -120,6 +153,17 @@ namespace Salematic.Infrastructure.ServiceBus
         {
             _logger.LogError(args.Exception, "Erro no processor Service Bus. Origem={Source}", args.ErrorSource);
             return Task.CompletedTask;
+        }
+
+        private sealed class CmsxPedidoMsg
+        {
+            public string?  Aplicacaoid  { get; set; }
+            public string?  Numeropedido { get; set; }
+            public string?  Clientenome  { get; set; }
+            public string?  Clienteemail { get; set; }
+            public decimal? Valorpedido  { get; set; }
+            public string?  Status       { get; set; }
+            public string?  Descricao    { get; set; }
         }
     }
 }

@@ -178,7 +178,7 @@ public class AgentToolsService
         if (pedido.Status == "cancelado")
             return JsonSerializer.Serialize(new { mensagem = "Pedido já estava cancelado." });
 
-        await _pedidos.AtualizarStatusAsync(pedidoId, "cancelado");
+        await _pedidos.AtualizarStatusAsync(pedidoId, "cancelado","pagamento.erro");
         return JsonSerializer.Serialize(new { mensagem = $"Pedido {pedidoId} cancelado com sucesso." });
     }
 

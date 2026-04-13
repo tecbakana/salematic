@@ -14,7 +14,7 @@ public interface IPedidoRepository
     Task<Pedido> CriarPedidoAsync(Pedido pedido);
     Task<Pedido?> BuscarPorIdAsync(int id);
     Task<IEnumerable<Pedido>> BuscarPorClienteAsync(int clienteId);
-    Task AtualizarStatusAsync(int pedidoId, string status);
+    Task<bool> AtualizarStatusAsync(int pedidoId, string status, string evento);
 }
 
 public interface IClienteRepository
@@ -24,4 +24,5 @@ public interface IClienteRepository
     Task<Cliente> CriarClienteAsync(Cliente cliente);
     Task AtualizarEnderecoAsync(int id, string cep, string logradouro, string numero, string complemento, string bairro, string cidade, string estado);
     Task AtualizarClienteAsync(int id, string nome, string documento, string email, string telefone);
+    Task<Cliente?> BuscarPorEmailAsync(string email);
 }

@@ -78,11 +78,13 @@ public class PedidoRepository : IPedidoRepository
         return lookup.Values;
     }
 
-    public async Task AtualizarStatusAsync(int pedidoId, string status)
+    public async Task<bool> AtualizarStatusAsync(int pedidoId, string status, string evento)
     {
         using var conn = new SqlConnection(_connectionString);
-        await conn.ExecuteAsync(
+        var result = await conn.ExecuteAsync(
             "UPDATE Pedidos SET Status = @Status WHERE Id = @Id",
             new { Status = status, Id = pedidoId });
+
+        return result > 0;
     }
 }

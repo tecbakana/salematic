@@ -40,6 +40,7 @@ public class Pedido
     public int ClienteId { get; set; }
     public DateTime DataPedido { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string Evento { get; set; } = string.Empty;
     public decimal ValorTotal { get; set; }
     public List<ItemPedido> Itens { get; set; } = new();
 }

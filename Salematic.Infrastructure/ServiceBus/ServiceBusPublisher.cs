@@ -1,10 +1,13 @@
-﻿using System;
+﻿using Anthropic.SDK.Messaging;
+using Azure.Messaging.ServiceBus;
+using Salematic.Domain.Entities;
+using Salematic.Domain.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Azure.Messaging.ServiceBus;
-using Salematic.Domain.Interfaces;
 
 namespace Salematic.Infrastructure.ServiceBus
 {
@@ -19,9 +22,10 @@ namespace Salematic.Infrastructure.ServiceBus
             _sender = _client.CreateSender(topicName);
         }
 
-        public async Task PublishAsync<T>(T @event)
+        public async Task PublishAsync(object @event)
         {
-            var message = new ServiceBusMessage(System.Text.Json.JsonSerializer.Serialize(@event));
+            var json = JsonSerializer.Serialize(@event);
+            var message = new ServiceBusMessage(json);
             await _sender.SendMessageAsync(message);
         }
 

@@ -1,0 +1,98 @@
+# Salematic — Cursor Rules
+
+## Produto
+Salematic é um agente de vendas conversacional com IA. O usuário interage via chat em português; o agente chama ferramentas para consultar estoque, registrar pedidos, gerenciar clientes e gerar cobranças.
+
+## Stack
+- Backend: .NET 8, ASP.NET Core Web API, C#
+- ORM: Dapper (SQL raw, sem Entity Framework)
+- Banco: SQL Server
+- Frontend: React 18, TypeScript, Vite
+- IA: Anthropic SDK (Claude Sonnet 4.6) / Google Gemini 2.5 Flash
+- Cache: Redis (prod) / MemoryCache (dev)
+- Mensageria: Azure Service Bus
+- Pagamentos: Asaas
+
+## Arquitetura — Clean Architecture
+```
+Salematic.Domain/        → Entidades, interfaces, models (sem dependências externas)
+Salematic.Application/   → Services, DTOs (depende só de Domain)
+Salematic.Infrastructure/→ Repositórios (Dapper), LLM clients, pagamento, Service Bus
+Salematic.API/           → Controllers, middlewares, Program.cs
+```
+**Regra de dependência:** camadas internas não conhecem camadas externas. Domain não importa Infrastructure. Application não importa Infrastructure diretamente.
+
+## Convenções de nomenclatura
+
+### Backend (C#)
+- Entidades: PascalCase em português — `Produto`, `Pedido`, `Cliente`, `ItemPedido`
+- Interfaces: `I{Entidade}` — `IProdutoRepository`, `ILlmClient`, `IPagamentoService`
+- Repositórios: `{Entidade}Repository` implementa `I{Entidade}Repository`
+- Decorator de cache: `Cached{Entidade}Repository` wrapping o repositório base
+- Services: `{Entidade}Service` ou `{Feature}Service` — `ChatService`, `AgentToolsService`
+- Métodos assíncronos: `{Verbo}Async` em português — `BuscarPorNomeAsync`, `CriarPedidoAsync`
+- DTOs: em `Application/DTOs/`, nomeados `{Entidade}Dtos.cs`; classes internas como `{Entidade}Request`, `{Entidade}Response`
+
+### Ferramentas LLM (tool use)
+- Nomes das ferramentas: **snake_case português** — `consultar_estoque`, `registrar_pedido`, `cancelar_pedido`
+- Parâmetros das ferramentas: **snake_case** — `cliente_id`, `nome_produto`, `metodo_pagamento`
+- Ferramentas são definidas em `ChatService.DefinirFerramentas()` e executadas por `AgentToolsService`
+
+### Frontend (React/TypeScript)
+- Componentes: PascalCase — `MessageBubble`, `MessageInput`
+- Arquivos: PascalCase para componentes (`MessageBubble.tsx`), camelCase para utilitários (`api.ts`, `types.ts`)
+- Interfaces TypeScript: PascalCase — `ChatRequest`, `ChatResponse`, `Mensagem`
+
+## Padrões a seguir
+
+### Repositórios com Dapper
+```csharp
+// Usar SQL raw via Dapper — NÃO usar LINQ to SQL ou EF
+public async Task<Produto?> BuscarPorIdAsync(int id)
+{
+    using var conn = new SqlConnection(_connectionString);
+    return await conn.QueryFirstOrDefaultAsync<Produto>(
+        "SELECT * FROM Produtos WHERE Id = @Id AND Ativo = 1",
+        new { Id = id });
+}
+```
+
+### Factory de LLM
+```csharp
+// Nunca instanciar AnthropicLlmClient/GeminiLlmClient diretamente
+// Usar sempre a factory ou injetar ILlmClient
+var client = LlmFactory.Create(config); // retorna ILlmClient
+```
+
+### Secrets
+- API keys NUNCA hardcoded no código ou appsettings.json
+- Usar `dotnet user-secrets` para desenvolvimento:
+  ```
+  dotnet user-secrets set "Llm:Anthropic:ApiKey" "sk-..."
+  dotnet user-secrets set "Llm:Gemini:ApiKey" "AIza..."
+  ```
+
+### Tratamento de erros
+- Erros não tratados: capturados pelo `ExceptionMiddleware` global
+- Não duplicar try/catch em controllers — lançar exceções e deixar o middleware tratar
+
+### Fluxo de tool use (agentic loop)
+1. `ChatService.ProcessarAsync()` envia mensagem + ferramentas ao LLM
+2. Se LLM retornar `tool_use`, `AgentToolsService.ExecutarAsync()` executa a ferramenta
+3. Resultado retorna ao LLM via `EnviarResultadoToolAsync()`
+4. Loop até LLM retornar resposta em texto
+5. Histórico mantido em `List<LlmMensagem>` (nunca truncar sem necessidade)
+
+## Frontend React
+- Componentes funcionais com hooks — sem class components
+- TypeScript estrito (tsconfig com `"strict": true`)
+- Sem CSS-in-JS — usar CSS modules ou arquivos `.css` separados
+- Comunicação com backend exclusivamente via `api.ts`
+- Estado global mínimo — preferir estado local com `useState`
+
+## O que NÃO fazer
+- Não usar Entity Framework — Dapper é o ORM deste projeto
+- Não criar abstrações genéricas (`BaseService<T>`) — cada entidade tem seu próprio service
+- Não hardcodar API keys ou connection strings
+- Não adicionar comentários óbvios — código deve ser autoexplicativo
+- Não misturar idiomas em nomes: entidades e métodos em português, nunca `Product` ou `getProduct`

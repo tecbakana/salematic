@@ -12,6 +12,10 @@ dist/
 .env
 .env.local
 
+## Ferramentas de IA
+.claude/
+
 ## Misc
 *.DS_Store
 Thumbs.db
+*.log

@@ -55,4 +55,12 @@ public class ClienteRepository : IClienteRepository
             "UPDATE Clientes SET Nome = @Nome, Documento = @Documento, Email = @Email, Telefone = @Telefone WHERE Id = @Id",
             new { Id = id, Nome = nome, Documento = documento, Email = email, Telefone = telefone });
     }
+
+    public async Task<Cliente?> BuscarPorEmailAsync(string email)
+    {
+        using var conn = new SqlConnection(_connectionString);
+        return await conn.QueryFirstOrDefaultAsync<Cliente>(
+            "SELECT * FROM Clientes WHERE Email = @Email",
+            new { Email = email });
+    }
 }

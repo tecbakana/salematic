@@ -57,15 +57,19 @@ builder.Services.AddScoped<AgentToolsService>(sp => new AgentToolsService(
     isDevelopment,
     devRequestsPath
 ));
-builder.Services.AddSingleton<ServiceBusPublisher>(sp =>
+
+// Service Bus Publisher
+builder.Services.AddSingleton<IEventPublisher>(sp =>
 {
-    var sbConn = config.GetConnectionString("ServiceBus");
-    var topic = config["ServiceBus:Topic"] ?? "salematic-events";
-    if (string.IsNullOrEmpty(sbConn))
-        throw new InvalidOperationException("ConnectionStrings:ServiceBus não configurado");
-    return new ServiceBusPublisher(sbConn, topic);
+    var sbConn = config["ServiceBus:ConnectionString"];
+    var topic  = config["ServiceBus:Topic"] ?? "top-status-pedidos";
+    return new ServiceBusPublisher(sbConn ?? string.Empty, topic);
 });
 
+// Service Bus Consumer
+builder.Services.AddHostedService<ServiceBusConsumer>();
+
+// Chat service
 builder.Services.AddScoped<PedidoService>();
 builder.Services.AddScoped<ChatService>(sp => new ChatService(
     sp.GetRequiredService<ILlmClient>(),
