@@ -6,6 +6,12 @@ namespace Salematic.Infrastructure.Payment;
 // Implementação mock — substituir por gateway real em produção
 public class MockPagamentoService : IPagamentoService
 {
+    private readonly IMockPaymentConfigStore _configStore;
+
+    public MockPagamentoService(IMockPaymentConfigStore configStore)
+    {
+        _configStore = configStore;
+    }
     public Task<ResultadoPagamento> ProcessarAsync(SolicitacaoPagamento solicitacao)
     {
         // Cartões terminando em "0000" são recusados; demais aprovados

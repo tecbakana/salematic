@@ -197,7 +197,7 @@ public class AgentToolsService
 
         var existente = await _clientes.BuscarPorDocumentoAsync(documento);
         if (existente is not null)
-            return JsonSerializer.Serialize(new { erro = "Já existe um cliente com esse documento.", cliente_id = existente.Id });
+            return JsonSerializer.Serialize(new { erro = "Já existe um cliente com esse documento.", cliente_id = existente.SalematicClienteId });
 
         var cliente = new Domain.Entities.Cliente
         {
@@ -207,10 +207,18 @@ public class AgentToolsService
             Telefone = telefone
         };
 
-        var criado = await _clientes.CriarClienteAsync(cliente);
+        ClienteModel clienteModel = new ClienteModel
+        {
+            Nome = cliente.Nome,
+            Documento = cliente.Documento,
+            Email = cliente.Email,
+            Telefone = cliente.Telefone
+        };
+
+        var criado = await _clientes.ProcessarAsync(clienteModel);
         return JsonSerializer.Serialize(new
         {
-            cliente_id = criado.Id,
+            cliente_id = criado.SalematicClienteId,
             mensagem = $"Cliente '{criado.Nome}' cadastrado com sucesso."
         });
     }
@@ -224,7 +232,7 @@ public class AgentToolsService
 
         return JsonSerializer.Serialize(new
         {
-            id = cliente.Id,
+            id = cliente.SalematicClienteId,
             nome = cliente.Nome,
             documento = cliente.Documento,
             email = cliente.Email,

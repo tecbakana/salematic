@@ -6,7 +6,7 @@
     "tipo": "nova_ferramenta",
     "impacto": "medio",
     "descricao": "Possibilidade de cadastrar novo cliente.",
-    "detalhes": "O usu\u00E1rio precisa de um ID de cliente para registrar um pedido, mas n\u00E3o possui um cadastro. A funcionalidade permitiria a cria\u00E7\u00E3o de um novo cliente, gerando um ID para ele.",
+    "detalhes": "O usuário precisa de um ID de cliente para registrar um pedido, mas não possui um cadastro. A funcionalidade permitiria a criação de um novo cliente, gerando um ID para ele.",
     "origem": "chat"
   },
   {
@@ -15,8 +15,8 @@
     "status": "ignorado",
     "tipo": "nova_ferramenta",
     "impacto": "medio",
-    "descricao": "Atualizar endere\u00E7o de cliente existente",
-    "detalhes": "O cliente precisa de uma ferramenta para atualizar o endere\u00E7o de um cliente j\u00E1 cadastrado. Atualmente n\u00E3o h\u00E1 essa op\u00E7\u00E3o.",
+    "descricao": "Atualizar endereço de cliente existente",
+    "detalhes": "O cliente precisa de uma ferramenta para atualizar o endereço de um cliente já cadastrado. Atualmente não há essa opção.",
     "origem": "chat"
   },
   {
@@ -25,8 +25,8 @@
     "status": "ignorado",
     "tipo": "expor_campo",
     "impacto": "medio",
-    "descricao": "Incluir consulta de CEP na ferramenta de atualiza\u00E7\u00E3o de endere\u00E7o",
-    "detalhes": "Ao atualizar o endere\u00E7o de um cliente existente, a ferramenta deve permitir consultar e validar o CEP nos Correios.",
+    "descricao": "Incluir consulta de CEP na ferramenta de atualização de endereço",
+    "detalhes": "Ao atualizar o endereço de um cliente existente, a ferramenta deve permitir consultar e validar o CEP nos Correios.",
     "origem": "chat"
   },
   {
@@ -35,8 +35,8 @@
     "status": "concluido",
     "tipo": "nova_ferramenta",
     "impacto": "medio",
-    "descricao": "Permitir a atualiza\u00E7\u00E3o do endere\u00E7o de clientes existentes com consulta autom\u00E1tica de CEP nos Correios.",
-    "detalhes": "A ferramenta deve permitir que usu\u00E1rios atualizem o endere\u00E7o de um cliente j\u00E1 cadastrado. Durante a atualiza\u00E7\u00E3o, o sistema deve realizar uma consulta autom\u00E1tica de CEP nos Correios para validar e preencher dados do endere\u00E7o, se poss\u00EDvel.",
+    "descricao": "Permitir a atualização do endereço de clientes existentes com consulta automática de CEP nos Correios.",
+    "detalhes": "A ferramenta deve permitir que usuários atualizem o endereço de um cliente já cadastrado. Durante a atualização, o sistema deve realizar uma consulta automática de CEP nos Correios para validar e preencher dados do endereço, se possível.",
     "origem": "chat"
   },
   {
@@ -45,8 +45,8 @@
     "status": "ignorado",
     "tipo": "expor_campo",
     "impacto": "medio",
-    "descricao": "Incluir campos de endere\u00E7o (Rua, N\u00FAmero, Bairro, Cidade, Estado, CEP) no cadastro de clientes, permitindo tamb\u00E9m a consulta por CEP para preenchimento autom\u00E1tico.",
-    "detalhes": "Complementar o cadastro de clientes com informa\u00E7\u00F5es de endere\u00E7o detalhadas e funcionalidade de preenchimento autom\u00E1tico via consulta de CEP. Impacta a usabilidade no registro de novos clientes e a completude dos dados cadastrais. Isso \u00E9 uma implementa\u00E7\u00E3o posterior \u00E0 ferramenta de altera\u00E7\u00E3o de endere\u00E7o para clientes j\u00E1 existentes.",
+    "descricao": "Incluir campos de endereço (Rua, Número, Bairro, Cidade, Estado, CEP) no cadastro de clientes, permitindo também a consulta por CEP para preenchimento automático.",
+    "detalhes": "Complementar o cadastro de clientes com informações de endereço detalhadas e funcionalidade de preenchimento automático via consulta de CEP. Impacta a usabilidade no registro de novos clientes e a completude dos dados cadastrais. Isso é uma implementação posterior à ferramenta de alteração de endereço para clientes já existentes.",
     "origem": "chat"
   },
   {
@@ -55,8 +55,8 @@
     "status": "concluido",
     "tipo": "nova_ferramenta",
     "impacto": "medio",
-    "descricao": "Possibilitar a altera\u00E7\u00E3o manual da rua/logradouro para quando o CEP n\u00E3o for suficiente e permitir a atualiza\u00E7\u00E3o dos demais dados do cliente.",
-    "detalhes": "Solicita\u00E7\u00E3o do cliente para ajustar dados de endere\u00E7o e outros dados cadastrais.",
+    "descricao": "Possibilitar a alteração manual da rua/logradouro para quando o CEP não for suficiente e permitir a atualização dos demais dados do cliente.",
+    "detalhes": "Solicitação do cliente para ajustar dados de endereço e outros dados cadastrais.",
     "origem": "chat"
   },
   {
@@ -66,7 +66,7 @@
     "tipo": "nova_ferramenta",
     "impacto": "medio",
     "descricao": "Permitir a consulta completa dos dados de um cliente por ID.",
-    "detalhes": "Preciso de uma ferramenta que, dado um cliente_id, retorne todos os dados cadastrais (nome, documento, email, telefone, endere\u00E7o) para que eu possa identificar quais informa\u00E7\u00F5es est\u00E3o faltando ou precisam ser atualizadas. Atualmente, s\u00F3 consigo atualizar, mas n\u00E3o visualizar o que j\u00E1 existe.",
+    "detalhes": "Preciso de uma ferramenta que, dado um cliente_id, retorne todos os dados cadastrais (nome, documento, email, telefone, endereço) para que eu possa identificar quais informações estão faltando ou precisam ser atualizadas. Atualmente, só consigo atualizar, mas não visualizar o que já existe.",
     "origem": "chat"
   },
   {
@@ -75,8 +75,8 @@
     "status": "ignorado",
     "tipo": "nova_ferramenta",
     "impacto": "alto",
-    "descricao": "Desenvolver ferramenta para valida\u00E7\u00E3o de CPF",
-    "detalhes": "Integrar com URL externa para valida\u00E7\u00E3o autom\u00E1tica de CPF durante o cadastro ou atualiza\u00E7\u00E3o de clientes",
+    "descricao": "Desenvolver ferramenta para validação de CPF",
+    "detalhes": "Integrar com URL externa para validação automática de CPF durante o cadastro ou atualização de clientes",
     "url_externa": "http://urlvalidacpf.com.br",
     "origem": "chat"
   },
@@ -87,30 +87,32 @@
     "tipo": "nova_ferramenta",
     "impacto": "alto",
     "descricao": "Processar Pagamento de Pedidos",
-    "detalhes": "O cliente perguntou sobre como proceder com o pagamento do pedido. Precisamos de uma ferramenta que permita gerar um link de pagamento ou boleto, ou ao menos informar os m\u00E9todos de pagamento dispon\u00EDveis e como utiliz\u00E1-los. Esta ferramenta deve ser capaz de receber o ID do pedido e retornar as op\u00E7\u00F5es de pagamento ou um link para prosseguir.",
+    "detalhes": "O cliente perguntou sobre como proceder com o pagamento do pedido. Precisamos de uma ferramenta que permita gerar um link de pagamento ou boleto, ou ao menos informar os métodos de pagamento disponíveis e como utilizá-los. Esta ferramenta deve ser capaz de receber o ID do pedido e retornar as opções de pagamento ou um link para prosseguir.",
     "url_externa": "",
     "origem": "chat"
   },
   {
     "id": "51fef7fc-41b6-40a6-92c2-315de56c5320",
     "timestamp": "2026-04-04T22:14:21.0060994Z",
-    "status": "backlog",
+    "status": "cancelado",
     "tipo": "nova_ferramenta",
     "impacto": "alto",
     "descricao": "Implementar funcionalidade de login para clientes",
-    "detalhes": "Permitir que clientes fa\u00E7am login para gerenciar seus dados cadastrais, endere\u00E7os e consultar informa\u00E7\u00F5es detalhadas sobre seus pedidos e hist\u00F3rico de compras.",
+    "detalhes": "Permitir que clientes façam login para gerenciar seus dados cadastrais, endereços e consultar informações detalhadas sobre seus pedidos e histórico de compras.",
     "url_externa": "",
-    "origem": "chat"
+    "origem": "chat",
+    "timestamp_atualizacao": "2026-04-19T19:39:04.2447788Z"
   },
   {
     "id": "1c976b41-f0b6-45ea-8e80-287d5d5abcd0",
     "timestamp": "2026-04-04T22:19:50.7574637Z",
-    "status": "backlog",
+    "status": "cancelado",
     "tipo": "nova_ferramenta",
     "impacto": "alto",
     "descricao": "Implementar sistema de login para clientes",
-    "detalhes": "O cliente gostaria de um sistema de login para acessar seus dados e gerenciar informa\u00E7\u00F5es de contato e endere\u00E7o de forma aut\u00F4noma. Atualmente, o acesso aos dados \u00E9 mediado pelo assistente.",
+    "detalhes": "O cliente gostaria de um sistema de login para acessar seus dados e gerenciar informações de contato e endereço de forma autônoma. Atualmente, o acesso aos dados é mediado pelo assistente.",
     "url_externa": "",
-    "origem": "chat"
+    "origem": "chat",
+    "timestamp_atualizacao": "2026-04-19T19:39:04.8111151Z"
   }
 ]

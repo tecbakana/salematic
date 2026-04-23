@@ -1,6 +1,6 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
-using Salematic.Domain.Entities;
+using Salematic.Domain.Models;
 using Salematic.Domain.Interfaces;
 
 namespace Salematic.Infrastructure.Repositories;
@@ -14,29 +14,29 @@ public class ClienteRepository : IClienteRepository
         _connectionString = connectionString;
     }
 
-    public async Task<Cliente?> BuscarPorIdAsync(int id)
+    public async Task<ClienteModel?> BuscarPorIdAsync(int id)
     {
         using var conn = new SqlConnection(_connectionString);
-        return await conn.QueryFirstOrDefaultAsync<Cliente>(
-            "SELECT * FROM Clientes WHERE Id = @Id",
+        return await conn.QueryFirstOrDefaultAsync<ClienteModel>(
+            "SELECT SalematicClienteId, AplicacaoId, Nome, Documento, Email, Telefone, Cep, Logradouro, Numero, Complemento, Bairro, Cidade, Estado FROM Clientes WHERE SalematicClienteId = @Id",
             new { Id = id });
     }
 
-    public async Task<Cliente?> BuscarPorDocumentoAsync(string documento)
+    public async Task<ClienteModel?> BuscarPorDocumentoAsync(string documento)
     {
         using var conn = new SqlConnection(_connectionString);
-        return await conn.QueryFirstOrDefaultAsync<Cliente>(
-            "SELECT * FROM Clientes WHERE Documento = @Documento",
+        return await conn.QueryFirstOrDefaultAsync<ClienteModel>(
+            "SELECT Id AS SalematicClienteId, AplicacaoId, Nome, Documento, Email, Telefone, Cep, Logradouro, Numero, Complemento, Bairro, Cidade, Estado FROM Clientes WHERE Documento = @Documento",
             new { Documento = documento });
     }
 
-    public async Task<Cliente> CriarClienteAsync(Cliente cliente)
+    public async Task<ClienteModel> ProcessarAsync(ClienteModel cliente)
     {
         using var conn = new SqlConnection(_connectionString);
         var id = await conn.ExecuteScalarAsync<int>(
-            "INSERT INTO Clientes (Nome, Documento, Email, Telefone) OUTPUT INSERTED.Id VALUES (@Nome, @Documento, @Email, @Telefone)",
-            new { cliente.Nome, cliente.Documento, cliente.Email, cliente.Telefone });
-        cliente.Id = id;
+            "INSERT INTO Clientes (AplicacaoId, Nome, Documento, Email, Telefone, Cep, Logradouro, Numero, Complemento, Bairro, Cidade, Estado, SenhaHash) OUTPUT INSERTED.SalematicClienteId VALUES (@AplicacaoId, @Nome, @Documento, @Email, @Telefone, @Cep, @Logradouro, @Numero, @Complemento, @Bairro, @Cidade, @Estado, @SenhaHash)",
+            new { cliente.AplicacaoId, cliente.Nome, cliente.Documento, cliente.Email, cliente.Telefone, cliente.Cep, cliente.Logradouro, cliente.Numero, cliente.Complemento, cliente.Bairro, cliente.Cidade, cliente.Estado, cliente.SenhaHash });
+        cliente.SalematicClienteId = id;
         return cliente;
     }
 
@@ -56,11 +56,11 @@ public class ClienteRepository : IClienteRepository
             new { Id = id, Nome = nome, Documento = documento, Email = email, Telefone = telefone });
     }
 
-    public async Task<Cliente?> BuscarPorEmailAsync(string email)
+    public async Task<ClienteModel?> BuscarPorEmailAsync(string email)
     {
         using var conn = new SqlConnection(_connectionString);
-        return await conn.QueryFirstOrDefaultAsync<Cliente>(
-            "SELECT * FROM Clientes WHERE Email = @Email",
+        return await conn.QueryFirstOrDefaultAsync<ClienteModel>(
+            "SELECT SalematicClienteId, AplicacaoId, Nome, Documento, Email, Telefone, Cep, Logradouro, Numero, Complemento, Bairro, Cidade, Estado, SenhaHash FROM Clientes WHERE Email = @Email",
             new { Email = email });
     }
 }

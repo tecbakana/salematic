@@ -1,9 +1,14 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
+using Salematic.API.Middlewares;
 using Salematic.Application.Services;
+using Salematic.Domain.Entities;
 using Salematic.Domain.Interfaces;
 using Salematic.Infrastructure.LLM;
 using Salematic.Infrastructure.Payment;
 using Salematic.Infrastructure.Repositories;
-using Salematic.API.Middlewares;
 using Salematic.Infrastructure.ServiceBus;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +17,25 @@ var config = builder.Configuration;
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// JWT
+var jwtKey = config["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key não configurado (use dotnet user-secrets).");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(o =>
+    {
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = config["Jwt:Issuer"] ?? "Salematic",
+            ValidAudience = config["Jwt:Audience"] ?? "SalematicClientes",
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+builder.Services.AddAuthorization();
 
 // Cache — Redis em produção, Memory local
 var redisConn = config.GetConnectionString("Redis");
@@ -33,13 +57,18 @@ builder.Services.AddScoped<IProdutoRepository>(sp =>
 builder.Services.AddScoped<IPedidoRepository>(_ => new PedidoRepository(dbConn));
 builder.Services.AddScoped<IClienteRepository>(_ => new ClienteRepository(dbConn));
 
+
+
+// Configurações mock para desenvolvimento e testes
+builder.Services.AddSingleton<IMockPaymentConfigStore, MockPaymentConfigStore>();
+
 // Pagamento
-var asaasKey = config["Asaas:ApiKey"] ?? string.Empty;
+/*var asaasKey = config["Asaas:ApiKey"] ?? string.Empty;
 var asaasUrl = config["Asaas:BaseUrl"] ?? "https://sandbox.asaas.com/api/v3";
 builder.Services.AddScoped<IPagamentoService>(_ =>
     string.IsNullOrWhiteSpace(asaasKey)
         ? new MockPagamentoService()
-        : new AsaasPagamentoService(asaasKey, asaasUrl));
+        : new AsaasPagamentoService(asaasKey, asaasUrl));*/
 
 // LLM
 builder.Services.AddSingleton<ILlmClient>(_ => LlmFactory.Create(config));
@@ -49,6 +78,7 @@ var isDevelopment = builder.Environment.IsDevelopment();
 var devRequestsPath = config["DevRequests:Dir"]
     ?? Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "dev-requests"));
 
+// Chat service
 builder.Services.AddScoped<AgentToolsService>(sp => new AgentToolsService(
     sp.GetRequiredService<IProdutoRepository>(),
     sp.GetRequiredService<IPedidoRepository>(),
@@ -69,8 +99,15 @@ builder.Services.AddSingleton<IEventPublisher>(sp =>
 // Service Bus Consumer
 builder.Services.AddHostedService<ServiceBusConsumer>();
 
-// Chat service
+builder.Services.AddScoped<IPagamentoService, MockPagamentoService>();
+
+builder.Services.AddScoped<ClienteService>(sp =>
+    new ClienteService(
+        sp.GetRequiredService<IClienteRepository>(),
+        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ClienteService>>(),
+        config));
 builder.Services.AddScoped<PedidoService>();
+
 builder.Services.AddScoped<ChatService>(sp => new ChatService(
     sp.GetRequiredService<ILlmClient>(),
     sp.GetRequiredService<AgentToolsService>(),
@@ -91,6 +128,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 app.Run();
 

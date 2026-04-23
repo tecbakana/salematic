@@ -145,16 +145,38 @@ export default function SalematicaMock() {
     }
   }, [methods]);
 
+  useEffect(() => {
+    fetch('api/mock/pagamento')
+    .then(r=>r.json())
+    .then(configs =>{
+      // para cada method no state, procura o config correspondente pelo id
+      // se achar, faz merge: { ...method, ...config }
+      // se não achar, mantém o method como está
+      setMethods(prev => prev.map(
+        m => {
+          const cfg = configs.find(c => c.id === m.id);
+          return cfg ? {...m,...cfg}:m;
+        }
+      ))
+    })
+    .catch(()=>{}) //
+  },[]);
+
   function updateMethod(id, patch) {
-    setMethods((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, ...patch } : m))
-    );
+    const atualizado = {...methods.find(m => m.id === id), ...patch};//cria um objeto novo substituindo o que foi alterado no caso patch
+
+    setMethods(prev => prev.map(m => m.id === id ? atualizado : m)); //atualiza o objeto com os novos dados
+
+    fetch(`/api/mock/pagamento/${id}`, { //enviando para a API .Net para atualizar o objeto
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(atualizado),
+    }).catch(() => {}); 
   }
 
   function toggleMethod(id) {
-    setMethods((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, enabled: !m.enabled } : m))
-    );
+    const m = methods.find(m => m.id === id);
+    updateMethod(id,{enabled: !m.enabled});
   }
 
   async function runSimulation(method) {

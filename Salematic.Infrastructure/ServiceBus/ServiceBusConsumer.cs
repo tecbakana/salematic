@@ -102,7 +102,7 @@ namespace Salematic.Infrastructure.ServiceBus
 
                 var request = new WebhookPedidoRequest
                 {
-                    ClienteId = cliente.Id,
+                    ClienteId = cliente.SalematicClienteId,
                     MetodoPagamento = "desconecido",
                     Itens = new List<WebhookItemRequest>()
                 };

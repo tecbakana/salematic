@@ -25,7 +25,7 @@ public class AnthropicLlmClient : ILlmClient
         {
             Model = _model,
             MaxTokens = 1024,
-            SystemMessage = systemPrompt,
+            System = [new SystemMessage(systemPrompt)],
             Messages = TraduzirMensagens(mensagens),
             Tools = TraduzirFerramentas(ferramentas)
         });
@@ -43,7 +43,11 @@ public class AnthropicLlmClient : ILlmClient
             Role = RoleType.User,
             Content = new List<ContentBase>
             {
-                new ToolResultContent { ToolUseId = idChamada, Content = resultadoJson }
+                new ToolResultContent
+                {
+                    ToolUseId = idChamada,
+                    Content = new List<ContentBase> { new TextContent { Text = resultadoJson } }
+                }
             }
         });
 
@@ -51,7 +55,7 @@ public class AnthropicLlmClient : ILlmClient
         {
             Model = _model,
             MaxTokens = 1024,
-            SystemMessage = systemPrompt,
+            System = [new SystemMessage(systemPrompt)],
             Messages = msgs,
             Tools = TraduzirFerramentas(ferramentas)
         });
@@ -66,8 +70,8 @@ public class AnthropicLlmClient : ILlmClient
             Content = new List<ContentBase> { new TextContent { Text = m.Content } }
         }).ToList();
 
-    private static List<Function> TraduzirFerramentas(List<LlmFerramenta> ferramentas) =>
-        ferramentas.Select(f => new Function(
+    private static IList<Anthropic.SDK.Common.Tool> TraduzirFerramentas(List<LlmFerramenta> ferramentas) =>
+        ferramentas.Select(f => (Anthropic.SDK.Common.Tool)new Function(
             f.Nome,
             f.Descricao,
             JsonNode.Parse(JsonSerializer.Serialize(new
