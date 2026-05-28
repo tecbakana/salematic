@@ -7,6 +7,7 @@ public interface IProdutoRepository
     Task<IEnumerable<Produto>> BuscarPorNomeAsync(string nome);
     Task<Produto?> BuscarPorIdAsync(int id);
     Task<Estoque?> ObterEstoqueAsync(int produtoId);
+    Task<bool> DebitarEstoqueAsync(int produtoId, int quantidade);
 }
 
 public interface IPedidoRepository

@@ -47,4 +47,10 @@ public class CachedProdutoRepository : IProdutoRepository
     // Estoque não é cacheado — muda a cada pedido
     public Task<Estoque?> ObterEstoqueAsync(int produtoId) =>
         _inner.ObterEstoqueAsync(produtoId);
+
+    public async Task<bool> DebitarEstoqueAsync(int produtoId, int quantidade)
+    {
+        return true;
+    }
+
 }

@@ -30,4 +30,15 @@ namespace Salematic.Application.DTOs
         public string Nome { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
     }
+
+    public class EsqueceuSenhaRequest
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class RedefinirSenhaRequest
+    {
+        public string Token { get; set; } = string.Empty;
+        public string NovaSenha { get; set; } = string.Empty;
+    }
 }

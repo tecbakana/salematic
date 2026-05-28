@@ -1,15 +1,21 @@
-using System.Text;
+using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Salematic.API.Middlewares;
+using Salematic.Application.Behaviors;
+using Salematic.Application.Notifications.Checkout;
 using Salematic.Application.Services;
+using Salematic.Application.Validators;
 using Salematic.Domain.Entities;
 using Salematic.Domain.Interfaces;
 using Salematic.Infrastructure.LLM;
 using Salematic.Infrastructure.Payment;
 using Salematic.Infrastructure.Repositories;
 using Salematic.Infrastructure.ServiceBus;
+using Salematic.Infrastructure.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
@@ -56,6 +62,7 @@ builder.Services.AddScoped<IProdutoRepository>(sp =>
 });
 builder.Services.AddScoped<IPedidoRepository>(_ => new PedidoRepository(dbConn));
 builder.Services.AddScoped<IClienteRepository>(_ => new ClienteRepository(dbConn));
+builder.Services.AddScoped<IEmailService>(sp => new EmailService(config));
 
 
 
@@ -88,22 +95,14 @@ builder.Services.AddScoped<AgentToolsService>(sp => new AgentToolsService(
     devRequestsPath
 ));
 
-// Service Bus Publisher
-builder.Services.AddSingleton<IEventPublisher>(sp =>
-{
-    var sbConn = config["ServiceBus:ConnectionString"];
-    var topic  = config["ServiceBus:Topic"] ?? "top-status-pedidos";
-    return new ServiceBusPublisher(sbConn ?? string.Empty, topic);
-});
-
-// Service Bus Consumer
-builder.Services.AddHostedService<ServiceBusConsumer>();
+builder.Services.AddSingleton<IEventPublisher, NullEventPublisher>();
 
 builder.Services.AddScoped<IPagamentoService, MockPagamentoService>();
 
 builder.Services.AddScoped<ClienteService>(sp =>
     new ClienteService(
         sp.GetRequiredService<IClienteRepository>(),
+        sp.GetRequiredService<IEmailService>(),
         sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ClienteService>>(),
         config));
 builder.Services.AddScoped<PedidoService>();
@@ -117,6 +116,15 @@ builder.Services.AddScoped<ChatService>(sp => new ChatService(
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+
+builder.Services.AddValidatorsFromAssembly(typeof(ItemValidator).Assembly);
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(Salematic.Application.Commands.Checkout.ProcessarCheckoutCommand).Assembly);
+    cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+});
 
 var app = builder.Build();
 
