@@ -21,14 +21,14 @@ public class PedidoService
         IClienteRepository clientes,
         IPagamentoService pagamento,
         IEventPublisher eventPublisher,
-        ILogger<PedidoService> logger
-        )
+        ILogger<PedidoService> logger)
     {
         _produtos = produtos;
         _pedidos = pedidos;
         _clientes = clientes;
         _pagamento = pagamento;
         _eventPublisher = eventPublisher;
+        _logger = logger;
     }
 
     public async Task<WebhookPedidoResponse> ProcessarAsync(WebhookPedidoRequest request)

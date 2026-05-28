@@ -63,4 +63,28 @@ public class ClienteRepository : IClienteRepository
             "SELECT SalematicClienteId, AplicacaoId, Nome, Documento, Email, Telefone, Cep, Logradouro, Numero, Complemento, Bairro, Cidade, Estado, SenhaHash FROM Clientes WHERE Email = @Email",
             new { Email = email });
     }
+
+    public async Task SalvarResetTokenAsync(int clienteId, string token, DateTime expiry)
+    {
+        using var conn = new SqlConnection(_connectionString);
+        await conn.ExecuteAsync(
+            "UPDATE Clientes SET ResetPasswordToken = @Token, ResetPasswordExpiry = @Expiry WHERE SalematicClienteId = @Id",
+            new { Id = clienteId, Token = token, Expiry = expiry });
+    }
+
+    public async Task<ClienteModel?> BuscarPorResetTokenAsync(string token)
+    {
+        using var conn = new SqlConnection(_connectionString);
+        return await conn.QueryFirstOrDefaultAsync<ClienteModel>(
+            "SELECT SalematicClienteId, AplicacaoId, Nome, Documento, Email, Telefone, ResetPasswordToken, ResetPasswordExpiry FROM Clientes WHERE ResetPasswordToken = @Token",
+            new { Token = token });
+    }
+
+    public async Task AtualizarSenhaAsync(int clienteId, string senhaHash)
+    {
+        using var conn = new SqlConnection(_connectionString);
+        await conn.ExecuteAsync(
+            "UPDATE Clientes SET SenhaHash = @SenhaHash, ResetPasswordToken = NULL, ResetPasswordExpiry = NULL WHERE SalematicClienteId = @Id",
+            new { Id = clienteId, SenhaHash = senhaHash });
+    }
 }

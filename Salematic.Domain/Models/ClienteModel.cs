@@ -22,5 +22,7 @@ namespace Salematic.Domain.Models
         public string Cidade { get; set; } = string.Empty;
         public string Estado { get; set; } = string.Empty;
         public string? SenhaHash { get; set; }
+        public string? ResetPasswordToken { get; set; }
+        public DateTime? ResetPasswordExpiry { get; set; }
     }
 }

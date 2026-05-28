@@ -37,4 +37,17 @@ public class ProdutoRepository : IProdutoRepository
             "SELECT * FROM Estoques WHERE ProdutoId = @ProdutoId",
             new { ProdutoId = produtoId });
     }
+
+    public async Task<bool> DebitarEstoqueAsync(int produtoId, int quantidade)
+    {
+        const string sql = @"UPDATE Estoques 
+                                SET Quantidade = Quantidade - @Quantidade 
+                                   ,UltimaAtualizacao = GETUTCDATE()
+                             WHERE ProdutoId = @ProdutoId 
+                               AND Quantidade >= @Quantidade";
+        using var conn = new SqlConnection(_connectionString);
+        var affected = await conn.ExecuteAsync(sql,
+            new { ProdutoId = produtoId, Quantidade = quantidade });
+        return affected > 0;
+    }
 }

@@ -42,5 +42,26 @@ namespace Salematic.API.Controllers
                 return Unauthorized(new { error = ex.Message });
             }
         }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] EsqueceuSenhaRequest request)
+        {
+            await _clienteService.EsqueceuSenhaAsync(request);
+            return Ok(new { message = "Se o e-mail estiver cadastrado, você receberá as instruções em breve." });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] RedefinirSenhaRequest request)
+        {
+            try
+            {
+                await _clienteService.RedefinirSenhaAsync(request);
+                return Ok(new { message = "Senha redefinida com sucesso." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
     }
 }

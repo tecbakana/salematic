@@ -1,6 +1,7 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Salematic.Application.Commands.Checkout;
 using Salematic.Application.DTOs;
-using Salematic.Application.Services;
 
 namespace Salematic.API.Controllers;
 
@@ -8,12 +9,12 @@ namespace Salematic.API.Controllers;
 [Route("api/pedidos")]
 public class PedidoController : ControllerBase
 {
-    private readonly PedidoService _pedidoService;
+    private readonly ISender _sender;
     private readonly IConfiguration _config;
 
-    public PedidoController(PedidoService pedidoService, IConfiguration config)
+    public PedidoController(ISender sender, IConfiguration config)
     {
-        _pedidoService = pedidoService;
+        _sender = sender;
         _config = config;
     }
 
@@ -26,7 +27,13 @@ public class PedidoController : ControllerBase
         if (!string.IsNullOrEmpty(expectedSecret) && secret != expectedSecret)
             return Unauthorized();
 
-        var resultado = await _pedidoService.ProcessarAsync(request);
+        var command = new ProcessarCheckoutCommand(
+            request.ClienteId,
+            request.MetodoPagamento,
+            request.NumeroCartao,
+            request.Itens);
+
+        var resultado = await _sender.Send(command);
         return resultado.Sucesso ? Ok(resultado) : BadRequest(resultado);
     }
 }

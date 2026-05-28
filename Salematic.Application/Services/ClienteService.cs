@@ -14,12 +14,14 @@ namespace Salematic.Application.Services
     public class ClienteService
     {
         private readonly IClienteRepository _clienteRepository;
+        private readonly IEmailService _emailService;
         private readonly ILogger<ClienteService> _logger;
         private readonly IConfiguration _configuration;
 
-        public ClienteService(IClienteRepository clienteRepository, ILogger<ClienteService> logger, IConfiguration configuration)
+        public ClienteService(IClienteRepository clienteRepository, IEmailService emailService, ILogger<ClienteService> logger, IConfiguration configuration)
         {
             _clienteRepository = clienteRepository;
+            _emailService = emailService;
             _logger = logger;
             _configuration = configuration;
         }
@@ -113,6 +115,38 @@ namespace Salematic.Application.Services
                 Nome = cliente.Nome,
                 Email = cliente.Email
             };
+        }
+
+        public async Task EsqueceuSenhaAsync(EsqueceuSenhaRequest request)
+        {
+            var cliente = await _clienteRepository.BuscarPorEmailAsync(request.Email);
+            if (cliente == null)
+                return; // não revela se o email existe
+
+            var token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+                .Replace("+", "-").Replace("/", "_").Replace("=", "");
+            var expiry = DateTime.UtcNow.AddHours(1);
+
+            await _clienteRepository.SalvarResetTokenAsync(cliente.SalematicClienteId, token, expiry);
+
+            var urlBase = _configuration["Email:UrlResetSenha"] ?? "http://localhost";
+            var link = $"{urlBase}?token={token}";
+            var corpo = $"<p>Olá, {cliente.Nome}.</p>" +
+                        $"<p>Clique no link abaixo para redefinir sua senha. O link expira em 1 hora.</p>" +
+                        $"<p><a href=\"{link}\">{link}</a></p>" +
+                        $"<p>Se você não solicitou a redefinição, ignore este e-mail.</p>";
+
+            await _emailService.EnviarAsync(cliente.Email, "Redefinição de senha", corpo);
+        }
+
+        public async Task RedefinirSenhaAsync(RedefinirSenhaRequest request)
+        {
+            var cliente = await _clienteRepository.BuscarPorResetTokenAsync(request.Token);
+            if (cliente == null || cliente.ResetPasswordExpiry == null || cliente.ResetPasswordExpiry < DateTime.UtcNow)
+                throw new InvalidOperationException("Token inválido ou expirado.");
+
+            var hash = BCrypt.Net.BCrypt.HashPassword(request.NovaSenha);
+            await _clienteRepository.AtualizarSenhaAsync(cliente.SalematicClienteId, hash);
         }
 
         private string GerarToken(ClienteModel cliente)
