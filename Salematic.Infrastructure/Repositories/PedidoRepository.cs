@@ -31,9 +31,7 @@ public class PedidoRepository : IPedidoRepository
             item.PedidoId = pedido.Id;
             await conn.ExecuteAsync(
                 @"INSERT INTO ItensPedido (PedidoId, ProdutoId, NomeProduto, Quantidade, PrecoUnitario)
-                  VALUES (@PedidoId, @ProdutoId, @NomeProduto, @Quantidade, @PrecoUnitario);
-                  UPDATE Estoques SET Quantidade = Quantidade - @Quantidade, UltimaAtualizacao = GETUTCDATE()
-                  WHERE ProdutoId = @ProdutoId;",
+                  VALUES (@PedidoId, @ProdutoId, @NomeProduto, @Quantidade, @PrecoUnitario);",
                 item, tx);
         }
 
