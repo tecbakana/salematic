@@ -15,6 +15,8 @@ using Salematic.Infrastructure.Payment;
 using Salematic.Infrastructure.Repositories;
 using Salematic.Infrastructure.ServiceBus;
 using Salematic.Infrastructure.Services;
+using StackExchange.Redis;
+using Salematic.Infrastructure.Locking;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,6 +51,20 @@ if (!string.IsNullOrEmpty(redisConn))
     builder.Services.AddStackExchangeRedisCache(o => o.Configuration = redisConn);
 else
     builder.Services.AddDistributedMemoryCache();
+
+// Distributed Lock — Redis
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var connStr = config.GetConnectionString("Redis")
+    ?? throw new InvalidOperationException("ConnectionStrings:Redis não configurado.");
+
+    var options = ConfigurationOptions.Parse(connStr);
+    options.LoggerFactory = sp.GetRequiredService<ILoggerFactory>();
+    options.AbortOnConnectFail = false;
+
+    return ConnectionMultiplexer.Connect(options);
+});
+builder.Services.AddSingleton<IStockLockService, RedisStockLockService>();
 
 // Repositórios
 var dbConn = config.GetConnectionString("SalematicDB")

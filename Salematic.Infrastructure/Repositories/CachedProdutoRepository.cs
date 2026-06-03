@@ -50,7 +50,9 @@ public class CachedProdutoRepository : IProdutoRepository
 
     public async Task<bool> DebitarEstoqueAsync(int produtoId, int quantidade)
     {
-        return true;
+        var debitado = await _inner.DebitarEstoqueAsync(produtoId, quantidade);
+        if (debitado)
+            await _cache.RemoveAsync($"estoque:{produtoId}");
+        return debitado;
     }
-
 }
