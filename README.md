@@ -2,7 +2,7 @@
 
 Agente de vendas com IA conversacional. O cliente interage via chat em linguagem natural; a LLM executa ferramentas para consultar estoque, cadastrar clientes, registrar pedidos e manter dados atualizados.
 
-Integrado ao **CMSX**, que consome a API do Salematic para exibir pedidos.
+Integrado ao **Multiplai**, que consome a API do Salematic para exibir pedidos.
 
 ---
 
@@ -11,9 +11,10 @@ Integrado ao **CMSX**, que consome a API do Salematic para exibir pedidos.
 | Camada | Tecnologia |
 |---|---|
 | API | .NET 8 — ASP.NET Core |
+| Mediação | MediatR (commands, notifications, behaviors) |
 | ORM | Dapper |
 | Banco | SQL Server (SalematicDB) |
-| Cache | Redis (prod) / MemoryCache (dev) |
+| Cache / Lock | Redis (prod) / MemoryCache (dev) |
 | Frontend | React 18 + TypeScript + Vite |
 | LLM padrão | Gemini 2.5 Flash |
 | LLM alternativa | Claude Sonnet 4.6 |
@@ -24,12 +25,11 @@ Integrado ao **CMSX**, que consome a API do Salematic para exibir pedidos.
 
 ```
 Salematic.API/           — Controllers, middlewares, configuração
-Salematic.Application/   — ChatService, AgentToolsService, DTOs
+Salematic.Application/   — ChatService, AgentToolsService, Commands, DTOs
 Salematic.Domain/        — Entidades, interfaces de repositório
-Salematic.Infrastructure/ — Repositórios (Dapper), clientes LLM
+Salematic.Infrastructure/ — Repositórios (Dapper), clientes LLM, Redis
 Salematic.Tests/
 database/                — Scripts SQL
-dev-requests/            — Fila de solicitações do agente (queue.json)
 frontend/                — React app
 ```
 
@@ -37,9 +37,7 @@ frontend/                — React app
 
 ## Configuração
 
-> **AVISO DE SEGURANÇA:** Nunca commitar arquivos com API keys, senhas ou configurações sensíveis. Use `dotnet user-secrets` para secrets locais e garanta que `.gitignore` exclua qualquer arquivo com dados sensíveis antes do push.
-
-API keys e secrets são gerenciados via `dotnet user-secrets` — o `appsettings.json` não contém valores sensíveis.
+> **AVISO DE SEGURANÇA:** Nunca commitar arquivos com API keys, senhas ou configurações sensíveis. Use `dotnet user-secrets` para secrets locais.
 
 ```bash
 dotnet user-secrets set "Llm:Anthropic:ApiKey" "<key>"
@@ -109,22 +107,20 @@ Ponto de entrada do chat. Recebe histórico + mensagem atual, devolve resposta d
 
 ### `POST /api/pedidos/webhook`
 
-Recebe notificações externas de pedidos (integração CMSX). Requer header `X-Webhook-Secret` quando configurado.
+Recebe notificações externas de pedidos (integração Multiplai). Requer header `X-Webhook-Secret` quando configurado.
 
 ---
 
 ## Ferramentas do agente
 
-A LLM aciona as ferramentas abaixo durante a conversa conforme a necessidade.
+A LLM aciona as ferramentas abaixo durante a conversa conforme necessidade.
 
 ### `consultar_estoque`
-Busca produtos por nome (aceita termo único ou lista de termos). Retorna id, nome, descrição, preço, unidade e quantidade em estoque.
+Busca produtos por nome. Retorna id, nome, descrição, preço, unidade e quantidade em estoque.
 
 | Parâmetro | Tipo | Obrigatório |
 |---|---|---|
 | `nome_produto` | `string[]` | sim |
-
----
 
 ### `cadastrar_cliente`
 Cria um novo cliente. Retorna o `cliente_id` gerado.
@@ -136,19 +132,15 @@ Cria um novo cliente. Retorna o `cliente_id` gerado.
 | `email` | string | não |
 | `telefone` | string | não |
 
----
-
 ### `consultar_cliente`
-Retorna todos os dados cadastrais de um cliente (nome, documento, e-mail, telefone e endereço completo). Usar antes de atualizar para verificar o que já existe.
+Retorna todos os dados cadastrais de um cliente.
 
 | Parâmetro | Tipo | Obrigatório |
 |---|---|---|
 | `cliente_id` | integer | sim |
 
----
-
 ### `atualizar_cliente`
-Atualiza dados cadastrais. Informar apenas os campos que devem mudar — os demais são mantidos.
+Atualiza dados cadastrais. Informar apenas os campos que devem mudar.
 
 | Parâmetro | Tipo | Obrigatório |
 |---|---|---|
@@ -158,10 +150,8 @@ Atualiza dados cadastrais. Informar apenas os campos que devem mudar — os dema
 | `email` | string | não |
 | `telefone` | string | não |
 
----
-
 ### `atualizar_endereco`
-Atualiza o endereço via CEP (consulta automática no ViaCEP). Se o CEP não retornar logradouro (CEP rural, condomínio), informar `logradouro` manualmente.
+Atualiza o endereço via CEP (consulta automática no ViaCEP).
 
 | Parâmetro | Tipo | Obrigatório |
 |---|---|---|
@@ -170,8 +160,6 @@ Atualiza o endereço via CEP (consulta automática no ViaCEP). Se o CEP não ret
 | `numero` | string | sim |
 | `complemento` | string | não |
 | `logradouro` | string | não (sobrescreve ViaCEP) |
-
----
 
 ### `registrar_pedido`
 Cria um novo pedido. Valida estoque de cada item antes de registrar.
@@ -183,8 +171,6 @@ Cria um novo pedido. Valida estoque de cada item antes de registrar.
 
 Formato de `itens`: `[{"ProdutoId": 1, "Quantidade": 2}]`
 
----
-
 ### `consultar_pedidos`
 Lista todos os pedidos de um cliente com itens, valores e status.
 
@@ -192,30 +178,12 @@ Lista todos os pedidos de um cliente com itens, valores e status.
 |---|---|---|
 | `cliente_id` | integer | sim |
 
----
-
 ### `cancelar_pedido`
 Cancela um pedido pelo ID.
 
 | Parâmetro | Tipo | Obrigatório |
 |---|---|---|
 | `pedido_id` | integer | sim |
-
----
-
-### `solicitar_desenvolvimento` *(somente ambiente dev)*
-
-Registra uma solicitação de nova funcionalidade na fila `dev-requests/queue.json`. Se a solicitação envolver acesso a uma API externa, incluir `url_externa` — o status será `aguardando_aprovacao` até autorização manual.
-
-| Parâmetro | Tipo | Obrigatório |
-|---|---|---|
-| `descricao` | string | sim |
-| `tipo` | `expor_campo` \| `nova_ferramenta` \| `novo_endpoint` \| `correcao` | sim |
-| `impacto` | `baixo` \| `medio` \| `alto` | sim |
-| `detalhes` | string | não |
-| `url_externa` | string | não |
-
-Status possíveis na fila: `pendente`, `em_andamento`, `aguardando_aprovacao`, `concluido`, `ignorado`.
 
 ---
 
